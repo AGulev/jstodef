@@ -21,7 +21,7 @@ struct JsToDefListener {
   int m_Self;
 };
 
-void UnregisterCallback(JsToDefListener* cbk);
-void RegisterCallback(JsToDefListener* cbk);
+void UnregisterCallback(lua_State* L, JsToDefListener* cbk);
+int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk);
 
 #endif

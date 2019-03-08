@@ -1,0 +1,21 @@
+local function one_more_listener(self, message_id, message)
+	--pprint(message_id, message, self.instance_name)	
+	print(self.instance_name)
+	self.counter = self.counter + 1
+	if self.counter > 3 then
+		jstodef.remove_listener(one_more_listener)
+		print("remove_listener one_more_listener")
+	end
+end
+
+function init(self)
+	self.counter = 0
+	self.instance_name = "script_2.script"
+	if jstodef then
+		jstodef.add_listener(one_more_listener)
+	end
+end
+
+function final(self)
+	jstodef.remove_listener(one_more_listener)
+end
