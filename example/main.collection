@@ -39,7 +39,7 @@ embedded_instances {
   id: "sxript_2"
   data: "components {\n"
   "  id: \"script_2\"\n"
-  "  component: \"/example/script_2.script\"\n"
+  "  component: \"/example/example_2.script\"\n"
   "  position {\n"
   "    x: 0.0\n"
   "    y: 0.0\n"

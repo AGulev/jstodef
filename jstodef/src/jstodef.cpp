@@ -242,7 +242,7 @@ void UnregisterCallback(lua_State* L, JsToDefListener* cbk)
           JsToDef_RemoveCallbacks();
         }
     } else {
-      dmLogError("This callback do not exist");
+      dmLogError("Can't remove a callback that didn't not register.");
     }
 }
 
@@ -268,7 +268,7 @@ static int AddListener(lua_State* L)
             }
             m_listeners.Push(cbk);
       } else {
-        dmLogError("This callback already registered");
+        dmLogError("Can't register a callback again. Callback has been registered before.");
       }
       if (m_listeners.Size() == 1){
           JsToDef_RegisterCallbacks((ObjectMessage)JsToDef_SendObjectMessage, (ObjectMessage)JsToDef_SendStringMessage, 
@@ -335,7 +335,7 @@ dmExtension::Result FinalizeJsToDef(dmExtension::Params* params)
         return dmExtension::RESULT_OK;
 }
 
-#endif // platforms
+#endif
 
 
 DM_DECLARE_EXTENSION(EXTENSION_NAME, LIB_NAME, 0, 0, InitializeJsToDef, 0, 0, FinalizeJsToDef)

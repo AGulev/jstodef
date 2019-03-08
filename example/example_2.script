@@ -1,0 +1,15 @@
+local function example_2_listener(self, message_id, message)
+	
+end
+
+function init(self)
+	if jstodef then
+		jstodef.add_listener(example_2_listener)
+	end
+end
+
+function final(self)
+	if jstodef then
+		jstodef.remove_listener(example_2_listener)
+	end
+end

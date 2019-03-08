@@ -154,11 +154,11 @@
 	<!-- JsToDef example -->
 	<script type='text/javascript'>
 		setInterval(function(){
-			//JsToDef.send("ObjectEvent", {foo:"bar", num:16});
-			//JsToDef.send("FloatEvent", 19.2);
-			//JsToDef.send("IntEvent", 18);
-			//JsToDef.send("StrintEvent", "str");
-			//JsToDef.send("EmptyEvent");
+			JsToDef.send("ObjectEvent", {foo:"bar", num:16});
+			JsToDef.send("FloatEvent", 19.2);
+			JsToDef.send("IntEvent", 18);
+			JsToDef.send("StrintEvent", "str");
+			JsToDef.send("EmptyEvent");
 			JsToDef.send("BooleanEvent", true);
 			JsToDef.send("BooleanEvent", false);
 		}, 3000)

@@ -1,29 +1,15 @@
-local function js_listener(self, message_id, message)
-	--pprint(message_id, message, self.instance_name)
-	print(self.instance_name)
-	self.counter = self.counter + 1
-	if self.counter > 10 then
-		jstodef.remove_listener(js_listener)
-		jstodef.remove_listener(js_listener)
-		jstodef.remove_listener(js_listener)
-		print("remove_listener js_listener")
-	end
-end
+local function example_1_listener(self, message_id, message)
 
-local function one_more(self, message_id, message)
-	print("ee")
 end
 
 function init(self)
-	self.counter = 0
-	self.instance_name = "example.script"
 	if jstodef then
-		jstodef.add_listener(js_listener)
-		jstodef.add_listener(js_listener)
-		jstodef.add_listener(one_more)
+		jstodef.add_listener(example_1_listener)
 	end
 end
 
 function final(self)
-	jstodef.remove_listener(js_listener)
+	if jstodef then
+		jstodef.remove_listener(example_1_listener)
+	end
 end
