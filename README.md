@@ -63,9 +63,9 @@ local function js_listener(self, message_id, message)
 end
 
 function init(self)
-	if jstodef then
-		jstodef.add_listener(js_listener)
-	end
+  if jstodef then
+    jstodef.add_listener(js_listener)
+  end
 end
 ```
 
@@ -77,9 +77,9 @@ Where `listener` is the function that was previously added as a listener with `j
 
 ```lua
 function final(self)
-	if jstodef then
-		jstodef.remove_listener(js_listener)
-	end
+  if jstodef then
+    jstodef.remove_listener(js_listener)
+  end
 end
 ```
 
