@@ -1,4 +1,4 @@
-# jstodef
+# JsToDef
 
 This is [Native Extension](https://www.defold.com/manuals/extensions/) for the [Defold Game Engine](https://www.defold.com) that makes possible to send messages from JavaScript to Lua in [HTML5 build](https://www.defold.com/manuals/html5/).
 
