@@ -4,15 +4,35 @@
 
 #define DLIB_LOG_DOMAIN LIB_NAME
 #include <dmsdk/sdk.h>
-#include "jstodef.h"
 
 #if defined(DM_PLATFORM_HTML5)
+
+typedef void (*ObjectMessage)(const char* message_id, const char* message);
+typedef void (*NoMessage)(const char* message_id);
+typedef void (*NumberMessage)(const char* message_id, float message);
+typedef void (*BooleanMessage)(const char* message_id, int message);
+
+extern "C" {
+    void JsToDef_RegisterCallbacks(ObjectMessage cb_obj, ObjectMessage cb_string, NoMessage cb_empty, NumberMessage cb_num, BooleanMessage cb_bool);
+    void JsToDef_RemoveCallbacks();
+}
+
+struct JsToDefListener {
+    JsToDefListener() : m_L(0), m_Callback(LUA_NOREF), m_Self(LUA_NOREF) {}
+    lua_State* m_L;
+    int m_Callback;
+    int m_Self;
+};
+
+static void UnregisterCallback(lua_State* L, JsToDefListener* cbk);
+static int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk);
+
 
 lua_State* _L;
 
 dmArray<JsToDefListener> m_listeners;
 
-bool check_callback_and_instance(JsToDefListener* cbk)
+static bool check_callback_and_instance(JsToDefListener* cbk)
 {
     if(cbk->m_Callback == LUA_NOREF)
     {
@@ -33,7 +53,6 @@ bool check_callback_and_instance(JsToDefListener* cbk)
     dmScript::SetInstance(L);
     //[-1] - self
     //[-2] - callback
-    
     if (!dmScript::IsInstanceValid(L)) {
         UnregisterCallback(L, cbk);
         dmLogError("Could not run JsToDef callback because the instance has been deleted.");
@@ -51,6 +70,7 @@ static void JsToDef_SendObjectMessage(const char* message_id, const char* messag
         JsToDefListener* cbk = &m_listeners[i];
         lua_State* L = cbk->m_L;
         int top = lua_gettop(L);
+        bool is_fail = false;
         if (check_callback_and_instance(cbk)) {
             //[-1] - self
             //[-2] - callback
@@ -58,43 +78,24 @@ static void JsToDef_SendObjectMessage(const char* message_id, const char* messag
             //[-1] - message_id
             //[-2] - self
             //[-3] - callback
-
-            lua_getglobal(L, "json");
-            //[-1] - global json table
-            //[-2] - message_id
-            //[-3] - self
-            //[-4] - callback
-            lua_getfield(L, -1, "decode");
-            //[-1] - decode function
-            //[-2] - global json table
-            //[-3] - message_id
-            //[-4] - self
-            //[-5] - callback
-            lua_pushfstring(L, message);
-            //[-1] - message string
-            //[-2] - decode function
-            //[-3] - global json table
-            //[-4] - message_id
-            //[-5] - self
-            //[-6] - callback
-
-            if (lua_pcall(L, 1, 1, 0) != 0){
-                //[-1] - error
-                //[-2] - global json table
-                //[-3] - message_id
-                //[-4] - self
-                //[-5] - callback
-                dmLogError("error running function `json.decode': %s", lua_tostring(L, -1));
-                lua_pop(L, 5);
+            dmJson::Document doc;
+            dmJson::Result r = dmJson::Parse(message, &doc);
+            if (r == dmJson::RESULT_OK && doc.m_NodeCount > 0) {
+                char error_str_out[128];
+                if (dmScript::JsonToLua(L, &doc, 0, error_str_out, sizeof(error_str_out)) < 0) {
+                    dmLogError("Failed converting object JSON to Lua; %s", error_str_out);
+                    is_fail = true;
+                }
+            } else {
+                dmLogError("Failed to parse JS object(%d): (%s)", r, message);
+                is_fail = true;
+            }
+            dmJson::Free(&doc);
+            if (is_fail) {
+                lua_pop(L, 2);
                 assert(top == lua_gettop(L));
                 return;
             }
-            //[-1] - result lua  table
-            //[-2] - global json table
-            //[-3] - message_id
-            //[-4] - self
-            //[-5] - callback
-            lua_remove(L, -2);
             //[-1] - result lua  table
             //[-2] - message_id
             //[-3] - self
@@ -122,7 +123,6 @@ static void JsToDef_SendStringMessage(const char* message_id, const char* messag
         if (check_callback_and_instance(cbk)) {
             lua_pushstring(L, message_id);
             lua_pushstring(L, message);
-            
             int ret = lua_pcall(L, 3, 0, 0);
             if(ret != 0) {
                 dmLogError("Error running callback: %s", lua_tostring(L, -1));
@@ -190,7 +190,7 @@ static void JsToDef_SendBoolMessage(const char* message_id, int message)
         if (check_callback_and_instance(cbk)) {
             lua_pushstring(L, message_id);
             lua_pushboolean(L, message);
-            
+
             int ret = lua_pcall(L, 3, 0, 0);
             if(ret != 0) {
                 dmLogError("Error running callback: %s", lua_tostring(L, -1));
@@ -201,7 +201,7 @@ static void JsToDef_SendBoolMessage(const char* message_id, int message)
     }
 }
 
-int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk)
+static int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk)
 {
     lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_Callback);
     int first = lua_gettop(L);
@@ -227,7 +227,7 @@ int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk)
       return -1;
 }
 
-void UnregisterCallback(lua_State* L, JsToDefListener* cbk)
+static void UnregisterCallback(lua_State* L, JsToDefListener* cbk)
 {
     int index = GetEqualIndexOfListener(L, cbk);
     if (index >= 0){
@@ -297,45 +297,43 @@ static int RemoveListener(lua_State* L)
 
 static const luaL_reg Module_methods[] =
 {
-        {"add_listener", AddListener},
-        {"remove_listener", RemoveListener},
-        {0, 0}
+    {"add_listener", AddListener},
+    {"remove_listener", RemoveListener},
+    {0, 0}
 };
 
 static void LuaInit(lua_State* L)
 {
-        _L = L;
-        int top = lua_gettop(L);
-        luaL_register(L, MODULE_NAME, Module_methods);
-        lua_pop(L, 1);
-        assert(top == lua_gettop(L));
+    _L = L;
+    int top = lua_gettop(L);
+    luaL_register(L, MODULE_NAME, Module_methods);
+    lua_pop(L, 1);
+    assert(top == lua_gettop(L));
 }
 
 dmExtension::Result InitializeJsToDef(dmExtension::Params* params)
 {
-        LuaInit(params->m_L);
-        return dmExtension::RESULT_OK;
+    LuaInit(params->m_L);
+    return dmExtension::RESULT_OK;
 }
 
 dmExtension::Result FinalizeJsToDef(dmExtension::Params* params)
 {
-        return dmExtension::RESULT_OK;
+    return dmExtension::RESULT_OK;
 }
 
 #else // unsupported platforms
 
-
 dmExtension::Result InitializeJsToDef(dmExtension::Params* params)
 {
-        return dmExtension::RESULT_OK;
+    return dmExtension::RESULT_OK;
 }
 
 dmExtension::Result FinalizeJsToDef(dmExtension::Params* params)
 {
-        return dmExtension::RESULT_OK;
+    return dmExtension::RESULT_OK;
 }
 
 #endif
-
 
 DM_DECLARE_EXTENSION(EXTENSION_NAME, LIB_NAME, 0, 0, InitializeJsToDef, 0, 0, FinalizeJsToDef)

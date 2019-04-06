@@ -1,5 +1,5 @@
 local function example_2_listener(self, message_id, message)
-	
+	pprint("example2", message_id, message)
 end
 
 function init(self)
