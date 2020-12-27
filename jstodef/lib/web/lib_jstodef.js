@@ -17,25 +17,25 @@ var LibJsToDef = {
                     var msg_id = allocate(intArrayFromString(message_id), "i8", ALLOC_NORMAL);
                     switch (typeof message) {
                         case 'undefined':
-                            dynCall("vi", JsToDef._callback_empty, [msg_id]);
+                            {{{ makeDynCall("vi", "JsToDef._callback_empty")}}}(msg_id);
                             break;
                         case 'number':
-                            dynCall("vif", JsToDef._callback_number, [msg_id, message]);
+                            {{{ makeDynCall("vif", "JsToDef._callback_number")}}}(msg_id, message);
                             break;
                         case 'string':
                             var msg = allocate(intArrayFromString(message), "i8", ALLOC_NORMAL);
-                            dynCall("vii", JsToDef._callback_string, [msg_id, msg]);
+                            {{{ makeDynCall("vii", "JsToDef._callback_string")}}}(msg_id, msg);
                             Module._free(msg);
                             break;
                         case 'object':
                             var msg = JSON.stringify(message);
                             msg = allocate(intArrayFromString(msg), "i8", ALLOC_NORMAL);
-                            dynCall("vii", JsToDef._callback_object, [msg_id, msg]);
+                            {{{ makeDynCall("vii"," JsToDef._callback_object")}}}(msg_id, msg);
                             Module._free(msg);
                             break;
                         case 'boolean':
                             var msg = message ? 1 : 0; 
-                            dynCall("vii", JsToDef._callback_bool, [msg_id, msg]);
+                            {{{ makeDynCall("vii", "JsToDef._callback_bool")}}}(msg_id, msg);
                             break;
                         default:
                             console.warn("Unsupported message format: " + (typeof message));

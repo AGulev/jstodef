@@ -13,6 +13,8 @@ title = jstodef
 
 [html5]
 htmlfile = /example/engine_template.html
+heap_size = 32
 
 [library]
 include_dirs = jstodef
+
