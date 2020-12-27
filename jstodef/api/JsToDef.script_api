@@ -1,0 +1,25 @@
+- name: jstodef
+  type: table
+  desc: Functions and constants for interacting with JsToDef APIs
+
+  members:
+
+#*****************************************************************************************************
+
+  - name: add_listener
+    type: function
+
+    parameters:
+    - name: callback
+      type: function
+
+#*****************************************************************************************************
+
+  - name: remove_listener
+    type: function
+
+    parameters:
+    - name: callback
+      type: function
+
+#*****************************************************************************************************
