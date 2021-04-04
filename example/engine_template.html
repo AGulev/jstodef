@@ -202,10 +202,13 @@
 			JsToDef.send("ObjectEvent", {foo:"bar", num:16});
 			JsToDef.send("FloatEvent", 19.2);
 			JsToDef.send("IntEvent", 18);
-			JsToDef.send("StrintEvent", "str");
+			JsToDef.send("StringEvent", "str");
+			JsToDef.send("NullStringEvent", "str\0str");
 			JsToDef.send("EmptyEvent");
 			JsToDef.send("BooleanEvent", true);
 			JsToDef.send("BooleanEvent", false);
+			JsToDef.send("Uint8ArrayEvent", new Uint8Array([68, 101, 102, 111, 108, 100]));
+			JsToDef.send("ArrayBufferEvent", (new Uint8Array([78, 117, 108, 108, 0, 84, 101, 115, 116])).buffer);
 		}, 3000)
 	</script>
 </body>

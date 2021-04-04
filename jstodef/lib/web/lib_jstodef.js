@@ -23,15 +23,24 @@ var LibJsToDef = {
                             {{{ makeDynCall("vif", "JsToDef._callback_number")}}}(msg_id, message);
                             break;
                         case 'string':
-                            var msg = allocate(intArrayFromString(message), "i8", ALLOC_NORMAL);
-                            {{{ makeDynCall("vii", "JsToDef._callback_string")}}}(msg_id, msg);
+                            var msg_arr = intArrayFromString(message, true);
+                            var msg = allocate(msg_arr, "i8", ALLOC_NORMAL);
+                            {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, msg_arr.length);
                             Module._free(msg);
                             break;
                         case 'object':
-                            var msg = JSON.stringify(message);
-                            msg = allocate(intArrayFromString(msg), "i8", ALLOC_NORMAL);
-                            {{{ makeDynCall("vii"," JsToDef._callback_object")}}}(msg_id, msg);
-                            Module._free(msg);
+                            if (message instanceof ArrayBuffer || ArrayBuffer.isView(message)) {
+                                var msg_arr = new Uint8Array(ArrayBuffer.isView(message) ? message.buffer : message);
+                                var msg = allocate(msg_arr, "i8", ALLOC_NORMAL);
+                                {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, msg_arr.length);
+                                Module._free(msg);
+                            } else {
+                                var msg = JSON.stringify(message);
+                                var msg_arr = intArrayFromString(msg, true);
+                                msg = allocate(msg_arr, "i8", ALLOC_NORMAL);
+                                {{{ makeDynCall("viii", "JsToDef._callback_object")}}}(msg_id, msg, msg_arr.length);
+                                Module._free(msg);
+                            }
                             break;
                         case 'boolean':
                             var msg = message ? 1 : 0; 
