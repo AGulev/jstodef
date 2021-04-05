@@ -1,5 +1,9 @@
 local function example_2_listener(self, message_id, message)
-	pprint("example2", message_id, message)
+	if type(message) == "string" then
+		print("example2", message_id, message, "(" .. string.len(message) .. " bytes)")
+	else
+		pprint("example2", message_id, message)
+	end
 end
 
 function init(self)

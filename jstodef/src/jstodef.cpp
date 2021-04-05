@@ -7,7 +7,7 @@
 
 #if defined(DM_PLATFORM_HTML5)
 
-typedef void (*ObjectMessage)(const char* message_id, const char* message);
+typedef void (*ObjectMessage)(const char* message_id, const char* message, const int length);
 typedef void (*NoMessage)(const char* message_id);
 typedef void (*NumberMessage)(const char* message_id, float message);
 typedef void (*BooleanMessage)(const char* message_id, int message);
@@ -63,7 +63,7 @@ static bool check_callback_and_instance(JsToDefListener* cbk)
     return true;
 }
 
-static void JsToDef_SendObjectMessage(const char* message_id, const char* message)
+static void JsToDef_SendObjectMessage(const char* message_id, const char* message, const int length)
 {
     for(int i = m_listeners.Size() - 1; i >= 0; --i)
     {
@@ -79,7 +79,7 @@ static void JsToDef_SendObjectMessage(const char* message_id, const char* messag
             //[-2] - self
             //[-3] - callback
             dmJson::Document doc;
-            dmJson::Result r = dmJson::Parse(message, &doc);
+            dmJson::Result r = dmJson::Parse(message, length, &doc);
             if (r == dmJson::RESULT_OK && doc.m_NodeCount > 0) {
                 char error_str_out[128];
                 if (dmScript::JsonToLua(L, &doc, 0, error_str_out, sizeof(error_str_out)) < 0) {
@@ -110,7 +110,7 @@ static void JsToDef_SendObjectMessage(const char* message_id, const char* messag
     }
 }
 
-static void JsToDef_SendStringMessage(const char* message_id, const char* message)
+static void JsToDef_SendStringMessage(const char* message_id, const char* message, const int length)
 {
     for(int i = m_listeners.Size() - 1; i >= 0; --i)
     {
@@ -122,7 +122,7 @@ static void JsToDef_SendStringMessage(const char* message_id, const char* messag
         int top = lua_gettop(L);
         if (check_callback_and_instance(cbk)) {
             lua_pushstring(L, message_id);
-            lua_pushstring(L, message);
+            lua_pushlstring(L, message, length);
             int ret = lua_pcall(L, 3, 0, 0);
             if(ret != 0) {
                 dmLogError("Error running callback: %s", lua_tostring(L, -1));
