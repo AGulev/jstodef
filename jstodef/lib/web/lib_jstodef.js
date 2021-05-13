@@ -14,7 +14,7 @@ var LibJsToDef = {
                         console.warn("You need to send message_id")
                         return
                     }
-                    var msg_id = allocate(intArrayFromString(message_id), "i8", ALLOC_NORMAL);
+                    var msg_id = allocate(intArrayFromString(message_id), ALLOC_NORMAL);
                     switch (typeof message) {
                         case 'undefined':
                             {{{ makeDynCall("vi", "JsToDef._callback_empty")}}}(msg_id);
@@ -24,20 +24,20 @@ var LibJsToDef = {
                             break;
                         case 'string':
                             var msg_arr = intArrayFromString(message, true);
-                            var msg = allocate(msg_arr, "i8", ALLOC_NORMAL);
+                            var msg = allocate(msg_arr, ALLOC_NORMAL);
                             {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, msg_arr.length);
                             Module._free(msg);
                             break;
                         case 'object':
                             if (message instanceof ArrayBuffer || ArrayBuffer.isView(message)) {
                                 var msg_arr = new Uint8Array(ArrayBuffer.isView(message) ? message.buffer : message);
-                                var msg = allocate(msg_arr, "i8", ALLOC_NORMAL);
+                                var msg = allocate(msg_arr, ALLOC_NORMAL);
                                 {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, msg_arr.length);
                                 Module._free(msg);
                             } else {
                                 var msg = JSON.stringify(message);
                                 var msg_arr = intArrayFromString(msg, true);
-                                msg = allocate(msg_arr, "i8", ALLOC_NORMAL);
+                                msg = allocate(msg_arr, ALLOC_NORMAL);
                                 {{{ makeDynCall("viii", "JsToDef._callback_object")}}}(msg_id, msg, msg_arr.length);
                                 Module._free(msg);
                             }
