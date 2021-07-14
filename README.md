@@ -1,5 +1,7 @@
 # JsToDef
 
+[![Build Status](https://github.com/AGulev/jstodef/workflows/Build%20with%20bob/badge.svg)](https://github.com/AGulev/jstodef/actions)
+
 This is [Native Extension](https://www.defold.com/manuals/extensions/) for the [Defold Game Engine](https://www.defold.com) that makes possible to send messages from JavaScript to Lua in [HTML5 build](https://www.defold.com/manuals/html5/).
 
 ## Setup
