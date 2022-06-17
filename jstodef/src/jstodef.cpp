@@ -1,8 +1,9 @@
 #define EXTENSION_NAME jstodef
 #define LIB_NAME "jstodef"
 #define MODULE_NAME "jstodef"
-
+#ifndef DLIB_LOG_DOMAIN
 #define DLIB_LOG_DOMAIN LIB_NAME
+#endif
 #include <dmsdk/sdk.h>
 
 #if defined(DM_PLATFORM_HTML5)
