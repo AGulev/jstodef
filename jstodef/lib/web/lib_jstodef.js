@@ -11,8 +11,8 @@ var LibJsToDef = {
             send: function(message_id, message){
                 if (JsToDef._callback_object) {
                     if (!message_id) {
-                        console.warn("You need to send message_id")
-                        return
+                        console.warn("You need to send message_id");
+                        return;
                     }
                     var msg_id = allocate(intArrayFromString(message_id), ALLOC_NORMAL);
                     switch (typeof message) {
@@ -36,7 +36,7 @@ var LibJsToDef = {
                                 Module._free(msg);
                             } else {
                                 var msg = JSON.stringify(message);
-                                var msg_arr = intArrayFromString(msg, true);
+                                var msg_arr = intArrayFromString(msg, false); //zero-terminated
                                 msg = allocate(msg_arr, ALLOC_NORMAL);
                                 {{{ makeDynCall("viii", "JsToDef._callback_object")}}}(msg_id, msg, msg_arr.length);
                                 Module._free(msg);

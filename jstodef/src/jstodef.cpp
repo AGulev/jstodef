@@ -79,24 +79,7 @@ static void JsToDef_SendObjectMessage(const char* message_id, const char* messag
             //[-1] - message_id
             //[-2] - self
             //[-3] - callback
-            dmJson::Document doc;
-            dmJson::Result r = dmJson::Parse(message, length, &doc);
-            if (r == dmJson::RESULT_OK && doc.m_NodeCount > 0) {
-                char error_str_out[128];
-                if (dmScript::JsonToLua(L, &doc, 0, error_str_out, sizeof(error_str_out)) < 0) {
-                    dmLogError("Failed converting object JSON to Lua; %s", error_str_out);
-                    is_fail = true;
-                }
-            } else {
-                dmLogError("Failed to parse JS object(%d): (%s)", r, message);
-                is_fail = true;
-            }
-            dmJson::Free(&doc);
-            if (is_fail) {
-                lua_pop(L, 2);
-                assert(top == lua_gettop(L));
-                return;
-            }
+            dmScript::JsonToLua(L, message, length); // throws lua error if it fails
             //[-1] - result lua  table
             //[-2] - message_id
             //[-3] - self
