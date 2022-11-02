@@ -10,7 +10,7 @@ on:
 env:
   VERSION_FILENAME: 'info.json'
   CHANNEL: 'beta'
-  BUILD_SERVER: 'https://build.defold.com'
+  BUILD_SERVER: 'https://build-stage.defold.com'
 
 jobs:
   build_with_bob:
