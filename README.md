@@ -9,7 +9,6 @@ To use this library in your Defold project, add the needed version URL to your `
 
 <img width="401" alt="image" src="https://user-images.githubusercontent.com/2209596/202223571-c77f0304-5202-4314-869d-7a90bbeec5ec.png">
 
-
 ## API JavaScript side
 
 `JsToDef.send(message_id, message)`
