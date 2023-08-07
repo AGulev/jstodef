@@ -36,7 +36,7 @@ jobs:
       - name: Build
         run: java -jar bob.jar --platform=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
       - name: Bundle
-        run: java -jar bob.jar --platform=${{ matrix.platform }} build bundle
+        run: java -jar bob.jar --platform=${{ matrix.platform }} bundle
 
   # macOS is not technically needed for building, but we want to test bundling as well, since we're also testing the manifest merging
   build_with_bob_macos:
@@ -67,4 +67,4 @@ jobs:
       - name: Build
         run: java -jar bob.jar --platform=${{ matrix.platform }} build --archive --build-server=${{env.BUILD_SERVER}}
       - name: Bundle
-        run: java -jar bob.jar --platform=${{ matrix.platform }} build bundle
+        run: java -jar bob.jar --platform=${{ matrix.platform }} bundle
