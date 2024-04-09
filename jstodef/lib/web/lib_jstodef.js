@@ -14,7 +14,7 @@ var LibJsToDef = {
                         console.warn("You need to send message_id");
                         return;
                     }
-                    var msg_id = allocate(intArrayFromString(message_id), ALLOC_NORMAL);
+                    var msg_id = stringToNewUTF8(message_id);
                     switch (typeof message) {
                         case 'undefined':
                             {{{ makeDynCall("vi", "JsToDef._callback_empty")}}}(msg_id);
@@ -23,23 +23,22 @@ var LibJsToDef = {
                             {{{ makeDynCall("vif", "JsToDef._callback_number")}}}(msg_id, message);
                             break;
                         case 'string':
-                            var msg_arr = intArrayFromString(message, true);
-                            var msg = allocate(msg_arr, ALLOC_NORMAL);
-                            {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, msg_arr.length);
+                            var msg = stringToNewUTF8(message);
+                            {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, lengthBytesUTF8(message));
                             Module._free(msg);
                             break;
                         case 'object':
                             if (message instanceof ArrayBuffer || ArrayBuffer.isView(message)) {
                                 var msg_arr = new Uint8Array(ArrayBuffer.isView(message) ? message.buffer : message);
-                                var msg = allocate(msg_arr, ALLOC_NORMAL);
+                                var msg = _malloc(msg_arr.length * msg_arr.BYTES_PER_ELEMENT);
+                                HEAPU8.set(msg_arr, msg);
                                 {{{ makeDynCall("viii", "JsToDef._callback_string")}}}(msg_id, msg, msg_arr.length);
                                 Module._free(msg);
                             } else {
                                 var msg = JSON.stringify(message);
-                                var msg_arr = intArrayFromString(msg, false); //zero-terminated
-                                msg = allocate(msg_arr, ALLOC_NORMAL);
-                                {{{ makeDynCall("viii", "JsToDef._callback_object")}}}(msg_id, msg, msg_arr.length);
-                                Module._free(msg);
+                                var serialized_msg = stringToNewUTF8(msg);
+                                {{{ makeDynCall("viii", "JsToDef._callback_object")}}}(msg_id, serialized_msg, lengthBytesUTF8(msg));
+                                Module._free(serialized_msg);
                             }
                             break;
                         case 'boolean':
@@ -75,4 +74,4 @@ var LibJsToDef = {
 }
 
 autoAddDeps(LibJsToDef, '$JsToDef');
-mergeInto(LibraryManager.library, LibJsToDef);
+addToLibrary(LibJsToDef);
