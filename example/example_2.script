@@ -12,6 +12,23 @@ function init(self)
 	end
 end
 
+function update(self, dt)
+	if self.tested_synchronous_context or not html5 or not jstodef then
+		return
+	end
+
+	self.tested_synchronous_context = true
+	-- Leave a listener on another instance so the synchronous callback must
+	-- switch away from this script and then restore this script afterwards.
+	jstodef.remove_listener(example_2_listener)
+
+	local instance_id = go.get_id()
+	html5.run([[JsToDef.send("SynchronousContextEvent", "sync")]])
+	assert(go.get_id() == instance_id, "JsToDef did not restore the calling script instance")
+
+	jstodef.add_listener(example_2_listener)
+end
+
 function final(self)
 	if jstodef then
 		jstodef.remove_listener(example_2_listener)

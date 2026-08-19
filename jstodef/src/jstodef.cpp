@@ -19,76 +19,87 @@ extern "C" {
 }
 
 struct JsToDefListener {
-    JsToDefListener() : m_L(0), m_Callback(LUA_NOREF), m_Self(LUA_NOREF) {}
     lua_State* m_L;
-    int m_Callback;
-    int m_Self;
+    dmScript::LuaCallbackInfo* m_CallbackInfo;
+    int m_FunctionRef;
+    int m_SelfRef;
 };
 
-static void UnregisterCallback(lua_State* L, JsToDefListener* cbk);
 static int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk);
+static void DestroyListener(uint32_t index);
 
+static dmArray<JsToDefListener> m_listeners;
 
-lua_State* _L;
-
-dmArray<JsToDefListener> m_listeners;
-
-static bool check_callback_and_instance(JsToDefListener* cbk)
+static void ReleaseListener(JsToDefListener* cbk)
 {
-    if(cbk->m_Callback == LUA_NOREF)
+    if(cbk->m_CallbackInfo != 0x0)
     {
-        dmLogInfo("JsToDef callback do not exist.");
-        return false;
+        dmScript::DestroyCallback(cbk->m_CallbackInfo);
+        cbk->m_CallbackInfo = 0x0;
     }
-    lua_State* L = cbk->m_L;
-    int top = lua_gettop(L);
-    lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_Callback);
-    //[-1] - callback
-    lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_Self);
-    //[-1] - self
-    //[-2] - callback
-    lua_pushvalue(L, -1);
-    //[-1] - self
-    //[-2] - self
-    //[-3] - callback
-    dmScript::SetInstance(L);
-    //[-1] - self
-    //[-2] - callback
-    if (!dmScript::IsInstanceValid(L)) {
-        UnregisterCallback(L, cbk);
+
+    if(cbk->m_FunctionRef != LUA_NOREF)
+    {
+        dmScript::Unref(cbk->m_L, LUA_REGISTRYINDEX, cbk->m_FunctionRef);
+        cbk->m_FunctionRef = LUA_NOREF;
+    }
+
+    if(cbk->m_SelfRef != LUA_NOREF)
+    {
+        dmScript::Unref(cbk->m_L, LUA_REGISTRYINDEX, cbk->m_SelfRef);
+        cbk->m_SelfRef = LUA_NOREF;
+    }
+}
+
+static void DestroyListener(uint32_t index)
+{
+    ReleaseListener(&m_listeners[index]);
+    m_listeners.EraseSwap(index);
+
+    if(m_listeners.Empty())
+    {
+        JsToDef_RemoveCallbacks();
+    }
+}
+
+static dmScript::LuaCallbackInfo* GetValidCallback(uint32_t index)
+{
+    dmScript::LuaCallbackInfo* callback = m_listeners[index].m_CallbackInfo;
+    if(!dmScript::IsCallbackValid(callback))
+    {
         dmLogError("Could not run JsToDef callback because the instance has been deleted.");
-        lua_pop(L, 2);
-        assert(top == lua_gettop(L));
-        return false;
+        DestroyListener(index);
+        return 0x0;
     }
-    return true;
+    return callback;
 }
 
 static void JsToDef_SendObjectMessage(const char* message_id, const char* message, const int length)
 {
-    for(int i = m_listeners.Size() - 1; i >= 0; --i)
+    for(int i = (int)m_listeners.Size() - 1; i >= 0; --i)
     {
-        JsToDefListener* cbk = &m_listeners[i];
-        lua_State* L = cbk->m_L;
+        if((uint32_t)i >= m_listeners.Size())
+        {
+            continue;
+        }
+
+        dmScript::LuaCallbackInfo* callback = GetValidCallback(i);
+        if(callback == 0x0)
+        {
+            continue;
+        }
+
+        lua_State* L = dmScript::GetCallbackLuaContext(callback);
         int top = lua_gettop(L);
-        bool is_fail = false;
-        if (check_callback_and_instance(cbk)) {
-            //[-1] - self
-            //[-2] - callback
+
+        if(dmScript::SetupCallback(callback))
+        {
             lua_pushstring(L, message_id);
-            //[-1] - message_id
-            //[-2] - self
-            //[-3] - callback
             dmScript::JsonToLua(L, message, length); // throws lua error if it fails
-            //[-1] - result lua  table
-            //[-2] - message_id
-            //[-3] - self
-            //[-4] - callback
-            int ret = lua_pcall(L, 3, 0, 0);
-            if(ret != 0) {
-                dmLogError("Error running callback: %s", lua_tostring(L, -1));
-                lua_pop(L, 1);
-            }
+
+            int ret = dmScript::PCall(L, 3, 0);
+            (void)ret;
+            dmScript::TeardownCallback(callback);
         }
         assert(top == lua_gettop(L));
     }
@@ -96,22 +107,30 @@ static void JsToDef_SendObjectMessage(const char* message_id, const char* messag
 
 static void JsToDef_SendStringMessage(const char* message_id, const char* message, const int length)
 {
-    for(int i = m_listeners.Size() - 1; i >= 0; --i)
+    for(int i = (int)m_listeners.Size() - 1; i >= 0; --i)
     {
-        if(i > m_listeners.Size()){
-          return;
+        if((uint32_t)i >= m_listeners.Size())
+        {
+            continue;
         }
-        JsToDefListener* cbk = &m_listeners[i];
-        lua_State* L = cbk->m_L;
+
+        dmScript::LuaCallbackInfo* callback = GetValidCallback(i);
+        if(callback == 0x0)
+        {
+            continue;
+        }
+
+        lua_State* L = dmScript::GetCallbackLuaContext(callback);
         int top = lua_gettop(L);
-        if (check_callback_and_instance(cbk)) {
+
+        if(dmScript::SetupCallback(callback))
+        {
             lua_pushstring(L, message_id);
             lua_pushlstring(L, message, length);
-            int ret = lua_pcall(L, 3, 0, 0);
-            if(ret != 0) {
-                dmLogError("Error running callback: %s", lua_tostring(L, -1));
-                lua_pop(L, 1);
-            }
+
+            int ret = dmScript::PCall(L, 3, 0);
+            (void)ret;
+            dmScript::TeardownCallback(callback);
         }
         assert(top == lua_gettop(L));
     }
@@ -119,22 +138,29 @@ static void JsToDef_SendStringMessage(const char* message_id, const char* messag
 
 static void JsToDef_SendEmptyMessage(const char* message_id)
 {
-    for(int i = m_listeners.Size() - 1; i >= 0; --i)
+    for(int i = (int)m_listeners.Size() - 1; i >= 0; --i)
     {
-        if(i > m_listeners.Size()){
-          return;
+        if((uint32_t)i >= m_listeners.Size())
+        {
+            continue;
         }
-        JsToDefListener* cbk = &m_listeners[i];
-        lua_State* L = cbk->m_L;
+
+        dmScript::LuaCallbackInfo* callback = GetValidCallback(i);
+        if(callback == 0x0)
+        {
+            continue;
+        }
+
+        lua_State* L = dmScript::GetCallbackLuaContext(callback);
         int top = lua_gettop(L);
-        if (check_callback_and_instance(cbk)) {
+
+        if(dmScript::SetupCallback(callback))
+        {
             lua_pushstring(L, message_id);
-            
-            int ret = lua_pcall(L, 2, 0, 0);
-            if(ret != 0) {
-                dmLogError("Error running callback: %s", lua_tostring(L, -1));
-                lua_pop(L, 1);
-            }
+
+            int ret = dmScript::PCall(L, 2, 0);
+            (void)ret;
+            dmScript::TeardownCallback(callback);
         }
         assert(top == lua_gettop(L));
     }
@@ -142,23 +168,30 @@ static void JsToDef_SendEmptyMessage(const char* message_id)
 
 static void JsToDef_SendNumMessage(const char* message_id, float message)
 {
-    for(int i = m_listeners.Size() - 1; i >= 0; --i)
+    for(int i = (int)m_listeners.Size() - 1; i >= 0; --i)
     {
-        if(i > m_listeners.Size()){
-          return;
+        if((uint32_t)i >= m_listeners.Size())
+        {
+            continue;
         }
-        JsToDefListener* cbk = &m_listeners[i];
-        lua_State* L = cbk->m_L;
+
+        dmScript::LuaCallbackInfo* callback = GetValidCallback(i);
+        if(callback == 0x0)
+        {
+            continue;
+        }
+
+        lua_State* L = dmScript::GetCallbackLuaContext(callback);
         int top = lua_gettop(L);
-        if (check_callback_and_instance(cbk)) {
+
+        if(dmScript::SetupCallback(callback))
+        {
             lua_pushstring(L, message_id);
             lua_pushnumber(L, message);
-            
-            int ret = lua_pcall(L, 3, 0, 0);
-            if(ret != 0) {
-                dmLogError("Error running callback: %s", lua_tostring(L, -1));
-                lua_pop(L, 1);
-            }
+
+            int ret = dmScript::PCall(L, 3, 0);
+            (void)ret;
+            dmScript::TeardownCallback(callback);
         }
         assert(top == lua_gettop(L));
     }
@@ -166,20 +199,30 @@ static void JsToDef_SendNumMessage(const char* message_id, float message)
 
 static void JsToDef_SendBoolMessage(const char* message_id, int message)
 {
-    for(int i = m_listeners.Size() - 1; i >= 0; --i)
+    for(int i = (int)m_listeners.Size() - 1; i >= 0; --i)
     {
-        JsToDefListener* cbk = &m_listeners[i];
-        lua_State* L = cbk->m_L;
+        if((uint32_t)i >= m_listeners.Size())
+        {
+            continue;
+        }
+
+        dmScript::LuaCallbackInfo* callback = GetValidCallback(i);
+        if(callback == 0x0)
+        {
+            continue;
+        }
+
+        lua_State* L = dmScript::GetCallbackLuaContext(callback);
         int top = lua_gettop(L);
-        if (check_callback_and_instance(cbk)) {
+
+        if(dmScript::SetupCallback(callback))
+        {
             lua_pushstring(L, message_id);
             lua_pushboolean(L, message);
 
-            int ret = lua_pcall(L, 3, 0, 0);
-            if(ret != 0) {
-                dmLogError("Error running callback: %s", lua_tostring(L, -1));
-                lua_pop(L, 1);
-            }
+            int ret = dmScript::PCall(L, 3, 0);
+            (void)ret;
+            dmScript::TeardownCallback(callback);
         }
         assert(top == lua_gettop(L));
     }
@@ -187,95 +230,101 @@ static void JsToDef_SendBoolMessage(const char* message_id, int message)
 
 static int GetEqualIndexOfListener(lua_State* L, JsToDefListener* cbk)
 {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_Callback);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_FunctionRef);
     int first = lua_gettop(L);
     int second = first + 1;
     for(uint32_t i = 0; i != m_listeners.Size(); ++i)
     {
         JsToDefListener* cb = &m_listeners[i];
-        lua_rawgeti(L, LUA_REGISTRYINDEX, cb->m_Callback);
-        if (lua_equal(L, first, second)){
+        if(cb->m_L != cbk->m_L)
+        {
+            continue;
+        }
+
+        lua_rawgeti(L, LUA_REGISTRYINDEX, cb->m_FunctionRef);
+        if(lua_equal(L, first, second))
+        {
             lua_pop(L, 1);
-            lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_Self);
-            lua_rawgeti(L, LUA_REGISTRYINDEX, cb->m_Self);
-            if (lua_equal(L, second, second + 1)){
-              lua_pop(L, 3);
-              return i;
+            lua_rawgeti(L, LUA_REGISTRYINDEX, cbk->m_SelfRef);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, cb->m_SelfRef);
+            if(lua_equal(L, second, second + 1))
+            {
+                lua_pop(L, 3);
+                return i;
             }
             lua_pop(L, 2);
-        } else {
+        }
+        else
+        {
             lua_pop(L, 1);
         }
-      }
-      lua_pop(L, 1);
-      return -1;
-}
-
-static void UnregisterCallback(lua_State* L, JsToDefListener* cbk)
-{
-    int index = GetEqualIndexOfListener(L, cbk);
-    if (index >= 0){
-      if(cbk->m_Callback != LUA_NOREF)
-      {
-          dmScript::Unref(cbk->m_L, LUA_REGISTRYINDEX, cbk->m_Callback);
-          dmScript::Unref(cbk->m_L, LUA_REGISTRYINDEX, cbk->m_Self);
-          cbk->m_Callback = LUA_NOREF;
-      }
-      m_listeners.EraseSwap(index);
-      if (m_listeners.Size() == 0) {
-          JsToDef_RemoveCallbacks();
-        }
-    } else {
-      dmLogError("Can't remove a callback that didn't not register.");
     }
+    lua_pop(L, 1);
+    return -1;
 }
 
 static int AddListener(lua_State* L)
 {
-    JsToDefListener cbk;
-    cbk.m_L = dmScript::GetMainThread(L);
+    JsToDefListener cbk = {dmScript::GetMainThread(L), 0x0, LUA_NOREF, LUA_NOREF};
 
     luaL_checktype(L, 1, LUA_TFUNCTION);
     lua_pushvalue(L, 1);
-    cbk.m_Callback = dmScript::Ref(L, LUA_REGISTRYINDEX);
+    cbk.m_FunctionRef = dmScript::Ref(L, LUA_REGISTRYINDEX);
 
     dmScript::GetInstance(L);
-    cbk.m_Self = dmScript::Ref(L, LUA_REGISTRYINDEX);
+    cbk.m_SelfRef = dmScript::Ref(L, LUA_REGISTRYINDEX);
 
-    if(cbk.m_Callback != LUA_NOREF)
+    int index = GetEqualIndexOfListener(L, &cbk);
+    if(index >= 0)
     {
-      int index = GetEqualIndexOfListener(L, &cbk);
-        if (index < 0){
-            if(m_listeners.Full())
-            {
-                m_listeners.OffsetCapacity(1);
-            }
-            m_listeners.Push(cbk);
-      } else {
+        ReleaseListener(&cbk);
         dmLogError("Can't register a callback again. Callback has been registered before.");
-      }
-      if (m_listeners.Size() == 1){
-          JsToDef_RegisterCallbacks((ObjectMessage)JsToDef_SendObjectMessage, (ObjectMessage)JsToDef_SendStringMessage, 
-              (NoMessage)JsToDef_SendEmptyMessage,(NumberMessage)JsToDef_SendNumMessage, (BooleanMessage)JsToDef_SendBoolMessage);
-      }
+        return 0;
+    }
+
+    cbk.m_CallbackInfo = dmScript::CreateCallback(L, 1);
+    if(cbk.m_CallbackInfo == 0x0)
+    {
+        ReleaseListener(&cbk);
+        return luaL_error(L, "Failed to create JsToDef callback.");
+    }
+
+    if(m_listeners.Full())
+    {
+        m_listeners.OffsetCapacity(1);
+    }
+    m_listeners.Push(cbk);
+
+    if(m_listeners.Size() == 1)
+    {
+        JsToDef_RegisterCallbacks((ObjectMessage)JsToDef_SendObjectMessage, (ObjectMessage)JsToDef_SendStringMessage,
+            (NoMessage)JsToDef_SendEmptyMessage, (NumberMessage)JsToDef_SendNumMessage, (BooleanMessage)JsToDef_SendBoolMessage);
     }
     return 0;
 }
 
 static int RemoveListener(lua_State* L)
 {
-    JsToDefListener cbk;
-    cbk.m_L = dmScript::GetMainThread(L);
+    JsToDefListener cbk = {dmScript::GetMainThread(L), 0x0, LUA_NOREF, LUA_NOREF};
 
     luaL_checktype(L, 1, LUA_TFUNCTION);
     lua_pushvalue(L, 1);
-
-    cbk.m_Callback = dmScript::Ref(L, LUA_REGISTRYINDEX);
+    cbk.m_FunctionRef = dmScript::Ref(L, LUA_REGISTRYINDEX);
 
     dmScript::GetInstance(L);
-    cbk.m_Self = dmScript::Ref(L, LUA_REGISTRYINDEX);
+    cbk.m_SelfRef = dmScript::Ref(L, LUA_REGISTRYINDEX);
 
-    UnregisterCallback(L, &cbk);
+    int index = GetEqualIndexOfListener(L, &cbk);
+    ReleaseListener(&cbk);
+
+    if(index >= 0)
+    {
+        DestroyListener(index);
+    }
+    else
+    {
+        dmLogError("Can't remove a callback that wasn't registered.");
+    }
     return 0;
 }
 
@@ -288,7 +337,6 @@ static const luaL_reg Module_methods[] =
 
 static void LuaInit(lua_State* L)
 {
-    _L = L;
     int top = lua_gettop(L);
     luaL_register(L, MODULE_NAME, Module_methods);
     lua_pop(L, 1);
@@ -303,6 +351,11 @@ dmExtension::Result InitializeJsToDef(dmExtension::Params* params)
 
 dmExtension::Result FinalizeJsToDef(dmExtension::Params* params)
 {
+    (void)params;
+    while(!m_listeners.Empty())
+    {
+        DestroyListener(m_listeners.Size() - 1);
+    }
     return dmExtension::RESULT_OK;
 }
 
